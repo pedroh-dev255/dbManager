@@ -1,0 +1,125 @@
+const dbService = require('../services/dbService');
+
+async function listDb(req, res) {
+    try {
+        const { serverId } = req.body;
+
+        if(!serverId || serverId == "" || serverId === null){
+            return res.status(406).json({
+                success: false,
+                message: "Nenhuma conexão selecionada"
+            });
+        }
+
+        const dbList = await dbService.listDb(Number(serverId));
+
+        if(!dbList || dbList === null){
+            return res.status(404).json({
+                success: false,
+                message: "Nenhum banco encontrado"
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "bancos encontradas",
+            dbList
+        })
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: `Erro: ${error.message}`
+        });
+    }
+}
+
+
+async function listTable(req, res) {
+    try {
+        const { serverId, database } = req.body;
+
+        if(!serverId || serverId == "" || serverId === null || !database || database == "" || database === null){
+            return res.status(406).json({
+                success: false,
+                message: "Nenhum banco selecionado"
+            });
+        }
+
+        const tables = await dbService.listTable(serverId, database);
+
+        return res.status(200).json({
+            success: true,
+            message: "Tabelas encontradas",
+            tables
+        })
+        
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: `Erro: ${error.message}`
+        });
+    }
+}
+
+
+async function selectTable(req, res) {
+    try {
+        const { serverId, database, table } = req.body;
+
+        if(!serverId || serverId == "" || serverId === null || !database || database == "" || database === null, !table || table == "", table === null){
+            return res.status(406).json({
+                success: false,
+                message: "Nenhum banco selecionado"
+            });
+        }
+
+        const data = await dbService.selectTable(serverId, database, table);
+
+        return res.status(200).json({
+            success: true,
+            message: "Dados Encontradas",
+            data
+        })
+        
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: `Erro: ${error.message}`
+        });
+    }
+    
+}
+
+async function sqlfree(req,res) {
+    try {
+        const { serverId, database, sql } = req.body;
+
+        if(!serverId || serverId == "" || serverId === null || !sql || sql == "" || sql === null){
+            return res.status(406).json({
+                success: false,
+                message: "Nenhum banco selecionado"
+            });
+        }
+
+        const result = await dbService.sqlfree(serverId, database, sql);
+
+        return res.status(200).json({
+            success: true,
+            message: "Resultado da consulta",
+            result
+        })
+        
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: `Erro: ${error.message}`
+        });
+    }
+}
+
+module.exports = {
+    listDb,
+    listTable,
+    selectTable,
+    sqlfree
+}
