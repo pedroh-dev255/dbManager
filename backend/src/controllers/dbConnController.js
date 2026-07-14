@@ -25,6 +25,40 @@ async function list(req, res) {
 }
 
 
+async function connTest(req, res) {
+    try {
+        const {host, porta, usuario, senha} = req.body;
+
+        if(!usuario || !host){
+            return res.status(406).json({
+                success: false,
+                message: "Dados obrigatorios não enviados"
+            });
+        }
+
+        const result = await dbConnService.connTest(host, porta, usuario, senha);
+
+        if(!result || result === null || result == false){
+            return res.status(406).json({
+                success: false,
+                message: `Erro ao realizar teste de conexão`
+            });
+        }
+
+
+        return res.status(200).json({
+            success: true,
+            message: result
+        })
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }   
+}
+
+
 async function create(req, res) {
     try {
         const { nome, descricao, host, porta, usuario,senha,tipo,ssl_active, ativo } = req.body;
@@ -60,5 +94,6 @@ async function create(req, res) {
 
 module.exports = {
     list,
+    connTest,
     create
 }

@@ -5,7 +5,7 @@ JWT_TOKEN=
 JWT_EXPIRES_IN='24h'
 
 
-#mysql
+#Configuração do banco de dados local do sistema
 DB_HOST=
 DB_PORT=
 DB_USER=
