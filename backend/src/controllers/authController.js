@@ -4,7 +4,6 @@ const authService = require('../services/authService');
 async function login(req, res) {
     try {
         const {email, password} = req.body;
-
         if(!email || !password || email == "" || email == null || password == "" || password == null){
             return res.status(406).json({
                 success: false,

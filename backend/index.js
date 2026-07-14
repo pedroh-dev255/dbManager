@@ -1,6 +1,9 @@
 const express = require('express')
 const cors = require('cors');
+const helmet = require("helmet");
 require('dotenv').config();
+
+const authMiddleware = require("./src/middlewares/authMiddleware");
 
 const authRoute = require('./src/routes/auth');
 const conn = require('./src/routes/conn');
@@ -25,11 +28,22 @@ app.use(cors({
     credentials: true
 }));
 app.use(express.json());
+app.use(helmet());
+app.disable('x-powered-by');
 
 
 app.get('/health', (req, res) => res.status(200).send('server OK'));
 app.use('/auth', authRoute);
-app.use('/conn', conn);
-app.use('/db', db);
+
+
+app.get('/validate', authMiddleware, (req, res) => {
+    return res.status(200).json({
+        success: true
+    })
+})
+
+
+app.use('/conn', authMiddleware, conn);
+app.use('/db',   authMiddleware, db  );
 
 app.listen(port, () => console.log(`Server http://localhost:${port}`));
