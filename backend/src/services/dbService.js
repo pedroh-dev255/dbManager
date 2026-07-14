@@ -32,7 +32,7 @@ async function listDb(serverId) {
     }
 }
 
-async function listTable(serverId, database) {
+async function listDbData(serverId, database) {
     try {
         const [rows] = await pool.query(
             `SELECT host, porta, usuario, senha, ativo
@@ -69,7 +69,27 @@ async function listTable(serverId, database) {
             `SHOW TABLES FROM \`${database}\``
         );
 
-        return tables.map(table => Object.values(table)[0]);
+        const views = await ConnectionManager.query(
+            server,
+            `SHOW FULL TABLES FROM ${database} WHERE Table_type = 'VIEW'`
+        );
+
+        const functions = await ConnectionManager.query(
+            server,
+            `SHOW FUNCTION STATUS WHERE Db = '${database}'`
+        );
+
+        const triggers = await ConnectionManager.query(
+            server,
+            `SHOW TRIGGERS FROM ${database}`
+        );
+
+        return {
+            "tables": tables.map(table => Object.values(table)[0]),
+            "views": views.map(view => Object.values(view)[0]),
+            "functions": functions.map(functionss => Object.values(functionss)[0]),
+            "triggers": triggers.map(trigger => Object.values(trigger)[0])
+        }
 
     } catch (error) {
         throw error;
@@ -170,7 +190,7 @@ async function sqlfree(serverId, database, sql) {
 
 module.exports = {
     listDb,
-    listTable,
+    listDbData,
     selectTable,
     sqlfree
 }

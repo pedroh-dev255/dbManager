@@ -16,8 +16,18 @@ async function list() {
     }
 }
 
+async function create(nome, descricao, host, porta, usuario,senha,tipo,ssl_active, ativo) {
+    try {
+        
+    } catch (error) {
+        throw new Error("Erro ao criar Conexão: ", error.message);
+    }
+    
+}
+
 
 
 module.exports = {
     list,
+    create
 }

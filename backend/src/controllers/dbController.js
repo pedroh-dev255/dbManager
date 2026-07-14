@@ -34,7 +34,7 @@ async function listDb(req, res) {
 }
 
 
-async function listTable(req, res) {
+async function listDbData(req, res) {
     try {
         const { serverId, database } = req.body;
 
@@ -45,12 +45,12 @@ async function listTable(req, res) {
             });
         }
 
-        const tables = await dbService.listTable(serverId, database);
+        const data = await dbService.listDbData(serverId, database);
 
         return res.status(200).json({
             success: true,
-            message: "Tabelas encontradas",
-            tables
+            message: "Dados encontrados encontradas",
+            data
         })
         
     } catch (error) {
@@ -106,7 +106,7 @@ async function sqlfree(req,res) {
         return res.status(200).json({
             success: true,
             message: "Resultado da consulta",
-            result
+            data: result
         })
         
     } catch (error) {
@@ -119,7 +119,7 @@ async function sqlfree(req,res) {
 
 module.exports = {
     listDb,
-    listTable,
+    listDbData,
     selectTable,
     sqlfree
 }
