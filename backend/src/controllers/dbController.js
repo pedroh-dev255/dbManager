@@ -33,6 +33,38 @@ async function listDb(req, res) {
     }
 }
 
+async function listDbDetails(req, res) {
+    try {
+        const { serverId } = req.body;
+
+        if(!serverId || serverId == "" || serverId === null){
+            return res.status(406).json({
+                success: false,
+                message: "Nenhuma conexão selecionada"
+            });
+        }
+        const dblist = await dbService.listDbDetails(serverId);
+
+         if(!dblist || dblist === null){
+            return res.status(404).json({
+                success: false,
+                message: "Nenhum banco encontrado"
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "bancos encontradas",
+            databases: dblist
+        })
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: `Erro: ${error.message}`
+        });
+    }
+}
+
 
 async function listDbData(req, res) {
     try {
@@ -92,7 +124,7 @@ async function selectTable(req, res) {
 
 async function sqlfree(req,res) {
     try {
-        const { serverId, database, sql } = req.body;
+        const { serverId, database, page, sql } = req.body;
 
         if(!serverId || serverId == "" || serverId === null || !sql || sql == "" || sql === null){
             return res.status(406).json({
@@ -101,7 +133,7 @@ async function sqlfree(req,res) {
             });
         }
 
-        const result = await dbService.sqlfree(serverId, database, sql);
+        const result = await dbService.sqlfree(serverId, database, page, sql);
 
         return res.status(200).json({
             success: true,
@@ -112,7 +144,12 @@ async function sqlfree(req,res) {
     } catch (error) {
         return res.status(500).json({
             success: false,
-            message: `Erro: ${error.message}`
+            message: `Erro ao realizar consulta`,
+            data: {
+                columns: ['ERROR'],
+                rowsSize: [1, 1],
+                rows: [[error.message]],
+            }
         });
     }
 }
@@ -120,6 +157,7 @@ async function sqlfree(req,res) {
 module.exports = {
     listDb,
     listDbData,
+    listDbDetails,
     selectTable,
     sqlfree
 }

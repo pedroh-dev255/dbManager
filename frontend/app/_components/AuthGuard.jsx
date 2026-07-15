@@ -52,18 +52,9 @@ export default function AuthGuard({ children }) {
 
   if (checking) {
     return (
-      <div className="min-h-screen bg-zinc-100 dark:bg-[#09090B] flex items-center justify-center p-6">
-        <div
-          className="
-            w-full max-w-lg
-            rounded-3xl
-            border border-zinc-200 dark:border-zinc-800
-            bg-white dark:bg-[#111113]
-            shadow-2xl
-            p-10
-            text-center
-          "
-        >
+      <main className="min-h-screen bg-slate-100 flex items-center justify-center p-6">
+
+            <div className="w-full max-w-md">
           {/* SPINNER */}
           <div
             className="
@@ -117,7 +108,7 @@ export default function AuthGuard({ children }) {
             Tentar Novamente
           </button>
         </div>
-      </div>
+      </main>
     );
   }
 
