@@ -480,7 +480,7 @@ function ServerDetails({ server }) {
                                 }}
                                 spellCheck={false}
                                 placeholder="Digite seu SQL aqui..."
-                                className="h-56 w-full rounded-lg border border-slate-300 bg-white-950 p-4 font-mono text-sm text-black-300 outline-none focus:ring-2 focus:ring-blue-500"
+                                className="h-26 w-full rounded-lg border border-slate-300 bg-white-950 p-4 font-mono text-sm text-black-300 outline-none focus:ring-2 focus:ring-blue-500"
                             />
 
                             <div className="flex gap-3">
