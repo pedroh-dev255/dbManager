@@ -315,7 +315,7 @@ async function sqlfree(serverId, database, page = 1, sql) {
             throw new Error("Servidor desativado.");
         }
 
-        const PAGE_SIZE = 100;
+        const PAGE_SIZE = 10;
 
         let query = sql.trim().replace(/;$/, "");
 

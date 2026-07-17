@@ -5,8 +5,8 @@ import { proxy } from "../../_proxy";
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { serverId, sql } = body;
-
+    const { serverId, sql, page } = body;
+    const sqlpage = page || 1;
     const token = request.cookies.get('token')?.value;
     const res = await proxy(request, `${process.env.BACKEND_URL}/db/sqlfree`,
         {
@@ -15,7 +15,7 @@ export async function POST(request) {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`,
             },
-            body: JSON.stringify({serverId, sql}),
+            body: JSON.stringify({serverId, sql, page: sqlpage}),
             cache: 'no-store',
         }
     );

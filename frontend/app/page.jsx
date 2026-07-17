@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Sidebar from "./_components/Sidebar";
+import NewDbModal from "./_components/newDbModal";
+import EditDbUserModal, { isSystemUser } from "./_components/editDbUserModal";
 import {
     Database,
     Server,
@@ -14,6 +16,11 @@ import {
     CheckCircle2,
     AlertTriangle,
     LoaderCircle,
+    Users,
+    Plus,
+    Pencil,
+    ArrowLeft,
+    ArrowRight,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useRouter } from 'next/navigation';
@@ -80,6 +87,10 @@ function ConnectionError({ server, error }) {
     );
 }
 
+function sqlLiteral(value) {
+    return `'${String(value).replaceAll("'", "''")}'`;
+}
+
 
 function Dashboard() {
     return (
@@ -93,7 +104,14 @@ function ServerDetails({ server }) {
     const [tab, setTab] = useState("databases");
     const [loading, setLoading] = useState(true);
     const [databases, setDatabases] = useState([]);
+    const [users, setUsers] = useState([]);
+    const [usersLoading, setUsersLoading] = useState(false);
+    const [usersError, setUsersError] = useState("");
+    const [newDbOpen, setNewDbOpen] = useState(false);
+    const [editingUser, setEditingUser] = useState(null);
+    const [newUserOpen, setNewUserOpen] = useState(false);
     const [search, setSearch] = useState("");
+    const [page, setSqlPage] = useState(1);
     const [sql, setSql] = useState("");
     const [sqlLoading, setSqlLoading] = useState(false);
     const [sqlResult, setSqlResult] = useState(null);
@@ -108,12 +126,21 @@ function ServerDetails({ server }) {
             id: "sql",
             icon: Server,
             label: "SQL"
+        },
+        {
+            id: "users",
+            icon: Users,
+            label: "Usuários"
         }
     ];
 
     useEffect(() => {
         loadDatabases();
     }, [server.id]);
+
+    useEffect(() => {
+        if (tab === "users") loadUsers();
+    }, [tab, server.id]);
 
     async function loadDatabases() {
         try {
@@ -144,7 +171,64 @@ function ServerDetails({ server }) {
         }
     }
 
-    async function executeSQL() {
+    async function loadUsers() {
+        try {
+            setUsersLoading(true);
+            setUsersError("");
+
+            const res = await fetch("/api/database/sql", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({
+                    serverId: server.id,
+                    sql: "SELECT User AS username, Host AS host FROM mysql.user ORDER BY User, Host",
+                }),
+            });
+            const data = await res.json();
+
+            if (!res.ok || !data.success) {
+                throw new Error(data.message || "Não foi possível carregar os usuários.");
+            }
+
+            setUsers((data.data?.rows || []).map(([username, host]) => ({ username, host })));
+        } catch (error) {
+            const message = error.message || "Não foi possível carregar os usuários.";
+            setUsersError(message);
+            toast.error(message);
+        } finally {
+            setUsersLoading(false);
+        }
+    }
+
+    async function openUserEditor(user) {
+        try {
+            const grantee = `${sqlLiteral(user.username)}@${sqlLiteral(user.host)}`;
+            const res = await fetch("/api/database/sql", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({
+                    serverId: server.id,
+                    sql: `SELECT DISTINCT TABLE_SCHEMA FROM information_schema.SCHEMA_PRIVILEGES WHERE GRANTEE = ${sqlLiteral(grantee)} ORDER BY TABLE_SCHEMA`,
+                }),
+            });
+            const data = await res.json();
+
+            if (!res.ok || !data.success) {
+                throw new Error(data.message || "Não foi possível consultar os acessos do usuário.");
+            }
+
+            setEditingUser({
+                ...user,
+                databases: (data.data?.rows || []).map(([database]) => database),
+            });
+        } catch (error) {
+            toast.error(error.message || "Não foi possível abrir a edição do usuário.");
+        }
+    }
+
+    async function executeSQL(page) {
         if (!sql.trim()) {
             toast.error("Digite um comando SQL.");
             return;
@@ -161,6 +245,7 @@ function ServerDetails({ server }) {
                 credentials: "include",
                 body: JSON.stringify({
                     serverId: server.id,
+                    page,
                     sql,
                 }),
             });
@@ -168,6 +253,7 @@ function ServerDetails({ server }) {
             const data = await res.json();
             //console.log(data);
 
+            setSqlPage(page);
             setSqlResult(data.data);
 
             if (!data.success) {
@@ -308,12 +394,21 @@ function ServerDetails({ server }) {
                                     className="w-80 rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 />
 
-                                <button
-                                    onClick={loadDatabases}
-                                    className="rounded-lg border border-slate-300 px-4 py-2 hover:bg-slate-100 transition"
-                                >
-                                    Atualizar
-                                </button>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setNewDbOpen(true)}
+                                        className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 transition"
+                                    >
+                                        <Plus size={17} />
+                                        Novo banco
+                                    </button>
+                                    <button
+                                        onClick={loadDatabases}
+                                        className="rounded-lg border border-slate-300 px-4 py-2 hover:bg-slate-100 transition"
+                                    >
+                                        Atualizar
+                                    </button>
+                                </div>
 
                             </div>
 
@@ -488,6 +583,60 @@ function ServerDetails({ server }) {
                         </div>
                     )}
 
+                    {tab === "users" && (
+                        <div className="space-y-5">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h2 className="font-semibold text-slate-800">Usuários do servidor</h2>
+                                    <p className="text-sm text-slate-500">Contas MySQL/MariaDB configuradas nesta conexão.</p>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button onClick={() => setNewUserOpen(true)} className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
+                                        <Plus size={17} /> Novo usuário
+                                    </button>
+                                    <button onClick={loadUsers} disabled={usersLoading} className="rounded-lg border border-slate-300 px-4 py-2 hover:bg-slate-100 disabled:opacity-60">
+                                        Atualizar
+                                    </button>
+                                </div>
+                            </div>
+
+                            {usersLoading ? (
+                                <div className="space-y-3 rounded-xl border p-5">
+                                    {[1, 2, 3, 4].map(item => <div key={item} className="h-5 animate-pulse rounded bg-slate-200" />)}
+                                </div>
+                            ) : usersError ? (
+                                <div className="rounded-xl border border-red-200 bg-red-50 p-5 text-red-700">{usersError}</div>
+                            ) : users.length === 0 ? (
+                                <div className="rounded-xl border bg-white p-10 text-center text-slate-500">Nenhum usuário encontrado.</div>
+                            ) : (
+                                <div className="overflow-hidden rounded-xl border bg-white">
+                                    <table className="w-full">
+                                        <thead className="bg-slate-100 text-left text-sm text-slate-700">
+                                            <tr><th className="px-4 py-3">Usuário</th><th className="px-4 py-3">Origem permitida</th><th className="px-4 py-3 text-right">Ações</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            {users.map(user => (
+                                                <tr key={`${user.username}@${user.host}`} className="border-t">
+                                                    <td className="px-4 py-3 font-medium text-slate-800">{user.username}</td>
+                                                    <td className="px-4 py-3 text-slate-600">{user.host}</td>
+                                                    <td className="px-4 py-3 text-right">
+                                                        {isSystemUser(user.username) ? (
+                                                            <span className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-500">Sistema</span>
+                                                        ) : (
+                                                            <button onClick={() => openUserEditor(user)} className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm text-blue-600 hover:bg-blue-50">
+                                                                <Pencil size={15} /> Editar
+                                                            </button>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     {tab === "sql" && (
                         <div className="space-y-5">
 
@@ -513,10 +662,13 @@ function ServerDetails({ server }) {
 
                             <textarea
                                 value={sql}
-                                onChange={(e) => setSql(e.target.value)}
+                                onChange={(e) => {
+                                    setSql(e.target.value);
+                                    setSqlPage(1);
+                                }}
                                 onKeyDown={(e) => {
                                     if (e.ctrlKey && e.key === "Enter") {
-                                        executeSQL();
+                                        executeSQL(page);
                                     }
                                 }}
                                 spellCheck={false}
@@ -527,7 +679,7 @@ function ServerDetails({ server }) {
                             <div className="flex gap-3">
 
                                 <button
-                                    onClick={executeSQL}
+                                    onClick={executeSQL(page)}
                                     disabled={sqlLoading}
                                     className="rounded-lg bg-blue-600 px-5 py-2 text-white hover:bg-blue-700 disabled:opacity-60"
                                 >
@@ -559,9 +711,28 @@ function ServerDetails({ server }) {
                                         </span>
 
                                         {sqlResult.rowsSize && (
-                                            <span className="text-sm text-slate-500">
-                                                Página {sqlResult.rowsSize[0]} • Mais {sqlResult.rowsSize[1]} página(s)
-                                            </span>
+                                            <div>
+                                                <button
+                                                    disabled={sqlLoading || page <= 1}
+                                                    onClick={() => executeSQL(page - 1)}
+                                                    className="disabled:opacity-50"
+                                                >
+                                                    <ArrowLeft size={20}/>
+                                                </button>
+                                                <span className="text-sm text-slate-500">
+                                                    Página {sqlResult.rowsSize[0]} • Mais {sqlResult.rowsSize[1]} página(s)
+                                                </span>
+                                                <button
+                                                    disabled={
+                                                        sqlLoading ||
+                                                        page >= sqlResult.rowsSize[1]
+                                                    }
+                                                    onClick={() => executeSQL(page + 1)}
+                                                    className="disabled:opacity-50"
+                                                >
+                                                    <ArrowRight size={20}/>
+                                                </button>
+                                            </div>
                                         )}
 
                                     </div>
@@ -649,6 +820,44 @@ function ServerDetails({ server }) {
 
             </div>
 
+            <NewDbModal
+                open={newDbOpen}
+                server={server}
+                onClose={() => setNewDbOpen(false)}
+                onCreated={() => {
+                    loadDatabases();
+                    loadUsers();
+                }}
+            />
+
+            {editingUser && (
+                <EditDbUserModal
+                    key={`${editingUser.username}@${editingUser.host}`}
+                    open
+                    server={server}
+                    user={editingUser}
+                    databases={databases}
+                    onClose={() => setEditingUser(null)}
+                    onSaved={() => {
+                        loadUsers();
+                        loadDatabases();
+                    }}
+                />
+            )}
+
+            {newUserOpen && (
+                <EditDbUserModal
+                    key="new-user"
+                    open
+                    mode="create"
+                    server={server}
+                    user={{ username: "", host: "%", databases: [] }}
+                    databases={databases}
+                    onClose={() => setNewUserOpen(false)}
+                    onSaved={loadUsers}
+                />
+            )}
+
         </div>
     );
 }
@@ -663,6 +872,7 @@ function DatabaseDetails({ database }) {
     const [search, setSearch] = useState("");
 
     const [sql, setSql] = useState("");
+    const [page, setSqlPage] = useState(1);
     const [sqlLoading, setSqlLoading] = useState(false);
     const [sqlResult, setSqlResult] = useState(null);
 
@@ -739,15 +949,15 @@ function DatabaseDetails({ database }) {
         },
         {
             nome: "SELECT",
-            sql: "SHOW PROCESSLIST;"
+            sql: `SELECT * FROM ${database.database}.`
         },
         {
             nome: "DROP",
-            sql: "SHOW VARIABLES;"
+            sql: `DROP TABLE ${database.database}.`
         },
         {
             nome: "CREATE",
-            sql: "SHOW STATUS;"
+            sql: `CREATE TABLE ${database.database}.`
         }
     ];
 
@@ -769,7 +979,7 @@ function DatabaseDetails({ database }) {
       )
     : [];
 
-    async function executeSQL() {
+    async function executeSQL(page) {
         if (!sql.trim()) {
             toast.error("Digite um comando SQL.");
             return;
@@ -785,7 +995,8 @@ function DatabaseDetails({ database }) {
                 },
                 credentials: "include",
                 body: JSON.stringify({
-                    serverId: server.id,
+                    serverId: database.server.id,
+                    page,
                     sql,
                 }),
             });
@@ -793,6 +1004,7 @@ function DatabaseDetails({ database }) {
             const data = await res.json();
             //console.log(data);
 
+            setSqlPage(page);
             setSqlResult(data.data);
 
             if (!data.success) {
@@ -1342,10 +1554,13 @@ function DatabaseDetails({ database }) {
 
                             <textarea
                                 value={sql}
-                                onChange={(e) => setSql(e.target.value)}
+                                onChange={(e) => {
+                                    setSql(e.target.value)
+                                    setSqlPage(1);
+                                }}
                                 onKeyDown={(e) => {
                                     if (e.ctrlKey && e.key === "Enter") {
-                                        executeSQL();
+                                        executeSQL(page);
                                     }
                                 }}
                                 spellCheck={false}
@@ -1356,7 +1571,7 @@ function DatabaseDetails({ database }) {
                             <div className="flex gap-3">
 
                                 <button
-                                    onClick={executeSQL}
+                                    onClick={executeSQL(page)}
                                     disabled={sqlLoading}
                                     className="rounded-lg bg-blue-600 px-5 py-2 text-white hover:bg-blue-700 disabled:opacity-60"
                                 >
@@ -1388,9 +1603,28 @@ function DatabaseDetails({ database }) {
                                         </span>
 
                                         {sqlResult.rowsSize && (
-                                            <span className="text-sm text-slate-500">
-                                                Página {sqlResult.rowsSize[0]} • Mais {sqlResult.rowsSize[1]} página(s)
-                                            </span>
+                                            <div className="flex items-center justtify-between gap-2">
+                                                <button
+                                                    disabled={sqlLoading || page <= 1}
+                                                    onClick={() => executeSQL(page - 1)}
+                                                    className="disabled:opacity-50"
+                                                >
+                                                    <ArrowLeft size={20}/>
+                                                </button>
+                                                <span className="text-sm text-slate-500">
+                                                    Página {sqlResult.rowsSize[0]} • Mais {sqlResult.rowsSize[1]} página(s)
+                                                </span>
+                                                <button
+                                                    disabled={
+                                                        sqlLoading ||
+                                                        page >= sqlResult.rowsSize[1]
+                                                    }
+                                                    onClick={() => executeSQL(page + 1)}
+                                                    className="disabled:opacity-50"
+                                                >
+                                                    <ArrowRight size={20}/>
+                                                </button>
+                                            </div>
                                         )}
 
                                     </div>
