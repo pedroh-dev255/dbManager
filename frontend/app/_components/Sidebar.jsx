@@ -11,16 +11,20 @@ import {
     Home,
     Settings,
     LogOut,
-    RotateCw
+    RotateCw,
+    AlertCircle,
+    LoaderCircle
 } from "lucide-react";
 import { toast } from "react-hot-toast";
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import NewServerModal from "./newServerModal";
 
 export default function Sidebar({onSelect}) {
+    const router = useRouter();
     const [servers, setServers] = useState([]);
     const [openServers, setOpenServers] = useState({});
     const [selected, setSelected] = useState(null);
-    const router = useRouter();
+    const [openAdServer, setOpenAdServer] = useState(false);
 
     useEffect(() => {
         loadServers();
@@ -42,6 +46,7 @@ export default function Sidebar({onSelect}) {
     }
 
     async function loadServers() {
+        setServers([]);
         try {
             const res = await fetch('/api/server/', {
                 method: 'GET',
@@ -63,7 +68,6 @@ export default function Sidebar({onSelect}) {
 
     async function toggleServer(serverId) {
         const current = openServers[serverId];
-
         if (current?.databases) {
             setOpenServers(prev => ({
                 ...prev,
@@ -72,8 +76,18 @@ export default function Sidebar({onSelect}) {
                     open: !prev[serverId].open,
                 },
             }));
-            return;
+            return { success: true };
         }
+
+        setOpenServers(prev => ({
+            ...prev,
+            [serverId]: {
+                ...prev[serverId],
+                open: true,
+                loading: true,
+                error: null,
+            },
+        }));
 
         try {
             const databases = await loadDatabases(serverId);
@@ -81,16 +95,42 @@ export default function Sidebar({onSelect}) {
             setOpenServers(prev => ({
                 ...prev,
                 [serverId]: {
+                    ...prev[serverId],
                     open: true,
                     databases,
+                    loading: false,
+                    error: null,
                 },
             }));
+            return { success: true };
         } catch (err) {
-            toast.error(err.message);
+            const error = err.message || "Erro ao conectar ao servidor.";
+
+            setOpenServers(prev => ({
+                ...prev,
+                [serverId]: {
+                    ...prev[serverId],
+                    open: true,
+                    loading: false,
+                    error,
+                },
+            }));
+            toast.error(error);
+            return { success: false, error };
         }
     }
 
     async function reloadDatabases(serverId) {
+        setOpenServers(prev => ({
+            ...prev,
+            [serverId]: {
+                ...prev[serverId],
+                open: true,
+                loading: true,
+                error: null,
+            },
+        }));
+
         try {
             const databases = await loadDatabases(serverId, true);
 
@@ -100,12 +140,25 @@ export default function Sidebar({onSelect}) {
                     ...prev[serverId],
                     open: true,
                     databases,
+                    loading: false,
+                    error: null,
                 },
             }));
 
             toast.success("Lista de bancos atualizada.");
         } catch (err) {
-            toast.error(err.message);
+            const error = err.message || "Erro ao conectar ao servidor.";
+
+            setOpenServers(prev => ({
+                ...prev,
+                [serverId]: {
+                    ...prev[serverId],
+                    open: true,
+                    loading: false,
+                    error,
+                },
+            }));
+            toast.error(error);
         }
     }
 
@@ -150,10 +203,20 @@ export default function Sidebar({onSelect}) {
             </div>
 
             {/* Novo servidor */}
-            <div className="p-4">
-                <button className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2.5 transition">
+            <div className="flex p-4 gap-2">
+                <button onClick={() => setOpenAdServer(true)} className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2.5 transition">
                     <Plus size={18} />
                     Novo Servidor
+                </button>
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        loadServers();
+                    }}
+                    title="Recarregar servidores"
+                    className="flex p-2 w-12 items-center justify-center rounded-lg text-slate-500 bg-slate-200 hover:bg-slate-300 hover:text-blue-600 transition"
+                >
+                    <RotateCw size={18} />
                 </button>
             </div>
 
@@ -167,17 +230,31 @@ export default function Sidebar({onSelect}) {
                                 <button
                                     onClick={() => {
                                         if (!server.ativo) return;
-                                        setSelected({
-                                            type: "server",
-                                            serverId: server.id,
-                                        });
-
                                         onSelect?.({
-                                            type: "server",
+                                            type: "server-loading",
                                             data: server,
                                         });
 
-                                        toggleServer(server.id);
+                                        toggleServer(server.id).then(result => {
+                                            if (!result.success) {
+                                                onSelect?.({
+                                                    type: "connection-error",
+                                                    data: server,
+                                                    error: result.error,
+                                                });
+                                                return;
+                                            }
+
+                                            setSelected({
+                                                type: "server",
+                                                serverId: server.id,
+                                            });
+
+                                            onSelect?.({
+                                                type: "server",
+                                                data: server,
+                                            });
+                                        });
                                     }}
                                     disabled={!server.ativo}
                                     className={`
@@ -194,25 +271,33 @@ export default function Sidebar({onSelect}) {
                                     ) : (
                                         <ChevronRight size={17} />
                                     )}
-                                    <Circle
-                                        size={10}
-                                        fill={
-                                            !server.ativo
-                                                ? "#9ca3af"
-                                                : selected?.type === "server" &&
-                                                selected.serverId === server.id
-                                                    ? "#22c55e"
-                                                    : "#2563eb"
-                                        }
-                                        className={
-                                            !server.ativo
-                                                ? "text-gray-400"
-                                                : selected?.type === "server" &&
-                                                selected.serverId === server.id
-                                                    ? "text-green-500"
-                                                    : "text-blue-600"
-                                        }
-                                    />
+                                    {serverState?.error ? (
+                                        <AlertCircle
+                                            size={16}
+                                            className="shrink-0 text-red-500"
+                                            title={serverState.error}
+                                        />
+                                    ) : (
+                                        <Circle
+                                            size={10}
+                                            fill={
+                                                !server.ativo
+                                                    ? "#9ca3af"
+                                                    : selected?.type === "server" &&
+                                                    selected.serverId === server.id
+                                                        ? "#22c55e"
+                                                        : "#2563eb"
+                                            }
+                                            className={
+                                                !server.ativo
+                                                    ? "text-gray-400"
+                                                    : selected?.type === "server" &&
+                                                    selected.serverId === server.id
+                                                        ? "text-green-500"
+                                                        : "text-blue-600"
+                                            }
+                                        />
+                                    )}
                                     <Server
                                         size={18}
                                         className={
@@ -242,21 +327,39 @@ export default function Sidebar({onSelect}) {
                                         </span>
                                     </div>
                                 </button>
-                                {server.ativo && (
+
+                                {server.ativo && selected?.serverId === server.id && (
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             reloadDatabases(server.id);
                                         }}
+                                        disabled={serverState?.loading}
                                         title="Recarregar bancos"
-                                        className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-blue-600 transition"
+                                        className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-blue-600 transition disabled:cursor-wait disabled:opacity-50"
                                     >
-                                        <RotateCw size={16} />
+                                        <RotateCw
+                                            size={16}
+                                            className={serverState?.loading ? "animate-spin" : ""}
+                                        />
                                     </button>
                                 )}
                             </div>
 
-                            {serverState?.open && (
+                            {serverState?.open && serverState.loading && (
+                                <div className="ml-8 flex items-center gap-2 px-2 py-2 text-sm text-slate-500">
+                                    <LoaderCircle size={15} className="animate-spin text-blue-600" />
+                                    Carregando bancos...
+                                </div>
+                            )}
+
+                            {serverState?.open && serverState.error && (
+                                <div className="ml-8 rounded-md bg-red-50 px-2 py-2 text-xs text-red-700">
+                                    Erro de conexão: {serverState.error}
+                                </div>
+                            )}
+
+                            {serverState?.open && !serverState.loading && !serverState.error && (
                                 <div className="ml-8 mt-0 space-y-0">
                                     {serverState.databases.map(db => (
                                         <button
@@ -313,7 +416,13 @@ export default function Sidebar({onSelect}) {
                     <LogOut size={18} />
                     Sair
                 </button>
+                <NewServerModal open={openAdServer} onClose={() => {
+                        loadServers();
+                        setOpenAdServer(false);
+                    }}
+                />
             </div>
+            
         </aside>
     );
 }

@@ -53,60 +53,49 @@ export default function AuthGuard({ children }) {
   if (checking) {
     return (
       <main className="min-h-screen bg-slate-100 flex items-center justify-center p-6">
-
-            <div className="w-full max-w-md">
-          {/* SPINNER */}
-          <div
-            className="
-              mx-auto mb-6
-              w-20 h-20
-              rounded-3xl
-              bg-zinc-100 dark:bg-zinc-900
-              flex items-center justify-center
-            "
-          >
-            <svg
-              className="animate-spin h-10 w-10 text-emerald-500"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                className="opacity-20"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
+        <div className="w-full max-w-sm">
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 p-8">
+            {/* Logo */}
+            <div className="flex justify-center mb-6">
+              <img
+                src="/icon-512.png"
+                alt="dbManager"
+                className="h-14 w-14"
               />
-
-              <path
-                className="opacity-90"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0 c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              />
-            </svg>
+            </div>
+            {/* Spinner */}
+            <div className="flex justify-center mb-6">
+              <svg
+                className="h-10 w-10 animate-spin text-blue-600"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-20"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-90"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                />
+              </svg>
+            </div>
+            {/* Texto */}
+            <div className="text-center">
+              <h2 className="text-lg font-semibold text-slate-800">
+                Validando sessão
+              </h2>
+              <p className="mt-2 text-sm text-slate-500">
+                Aguarde enquanto verificamos suas credenciais...
+              </p>
+            </div>
           </div>
-          {/* BUTTON */}
-          <button
-            // 🚧 Força o re-render do componente, disparando a validação do token novamente F5
-            onClick={() => {
-              console.log('Forçando revalidação da sessão...');
-              window.location.reload()
-            }}
-            className="
-              mt-6
-              h-12 px-6
-              rounded-2xl
-              bg-emerald-500
-              hover:bg-emerald-400
-              transition-all
-              text-black
-              font-semibold
-            "
-          >
-            Tentar Novamente
-          </button>
         </div>
       </main>
     );

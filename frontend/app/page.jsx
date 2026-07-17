@@ -12,6 +12,8 @@ import {
     Table,
     AlarmCheckIcon,
     CheckCircle2,
+    AlertTriangle,
+    LoaderCircle,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useRouter } from 'next/navigation';
@@ -28,6 +30,10 @@ export default function Home() {
             <main className="flex-1 overflow-auto">
                 {!selected ? (
                     <Dashboard />
+                ) : selected.type === "server-loading" ? (
+                    <ServerLoading server={selected.data} />
+                ) : selected.type === "connection-error" ? (
+                    <ConnectionError server={selected.data} error={selected.error} />
                 ) : selected.type === "server" ? (
                     <ServerDetails server={selected.data} />
                 ) : (
@@ -37,6 +43,41 @@ export default function Home() {
         </div>
     );
 
+}
+
+function ServerLoading({ server }) {
+    return (
+        <div className="min-h-screen bg-slate-100 flex items-center justify-center p-6">
+            <div className="w-full max-w-md rounded-xl border bg-white p-8 text-center shadow-sm">
+                <LoaderCircle size={38} className="mx-auto mb-4 animate-spin text-blue-600" />
+                <h1 className="text-lg font-semibold text-slate-800">
+                    Carregando bancos de dados...
+                </h1>
+                <p className="mt-2 text-sm text-slate-500">
+                    Conectando ao servidor {server.nome}.
+                </p>
+            </div>
+        </div>
+    );
+}
+
+function ConnectionError({ server, error }) {
+    return (
+        <div className="min-h-screen bg-slate-100 flex items-center justify-center p-6">
+            <div className="w-full max-w-md rounded-xl border border-red-200 bg-white p-8 text-center shadow-sm">
+                <AlertTriangle size={42} className="mx-auto mb-4 text-red-500" />
+                <h1 className="text-lg font-semibold text-slate-800">
+                    Erro de conexão
+                </h1>
+                <p className="mt-2 text-sm text-slate-500">
+                    Não foi possível carregar os bancos de dados de {server.nome}.
+                </p>
+                <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+                    {error || "Verifique a conexão e tente novamente."}
+                </p>
+            </div>
+        </div>
+    );
 }
 
 
@@ -1135,6 +1176,12 @@ function DatabaseDetails({ database }) {
                                 />
                                 <button
                                     onClick={loadTables}
+                                    className="rounded-lg border font-white-800 border-blue-300 bg-blue-500 px-4 py-2 hover:bg-blue-800 transition"
+                                >
+                                    Adicionar Trigger
+                                </button>
+                                <button
+                                    onClick={loadTables}
                                     className="rounded-lg border border-slate-300 px-4 py-2 hover:bg-slate-100 transition"
                                 >
                                     Atualizar
@@ -1303,7 +1350,7 @@ function DatabaseDetails({ database }) {
                                 }}
                                 spellCheck={false}
                                 placeholder="Digite seu SQL aqui..."
-                                className="h-56 w-full rounded-lg border border-slate-300 bg-white-950 p-4 font-mono text-sm text-black-300 outline-none focus:ring-2 focus:ring-blue-500"
+                                className="h-26 w-full rounded-lg border border-slate-300 bg-white-950 p-4 font-mono text-sm text-black-300 outline-none focus:ring-2 focus:ring-blue-500"
                             />
 
                             <div className="flex gap-3">
