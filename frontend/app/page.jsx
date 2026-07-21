@@ -530,7 +530,7 @@ function ServerDetails({ server }) {
                                             {filtered.map(db => (
 
                                                 <tr
-                                                    key={db.database}
+                                                    key={db.name}
                                                     className="border-t hover:bg-slate-50 transition"
                                                 >
 
@@ -679,7 +679,7 @@ function ServerDetails({ server }) {
                             <div className="flex gap-3">
 
                                 <button
-                                    onClick={executeSQL(page)}
+                                    onClick={() => executeSQL(page)}
                                     disabled={sqlLoading}
                                     className="rounded-lg bg-blue-600 px-5 py-2 text-white hover:bg-blue-700 disabled:opacity-60"
                                 >
@@ -1571,7 +1571,7 @@ function DatabaseDetails({ database }) {
                             <div className="flex gap-3">
 
                                 <button
-                                    onClick={executeSQL(page)}
+                                    onClick={() => executeSQL(page)}
                                     disabled={sqlLoading}
                                     className="rounded-lg bg-blue-600 px-5 py-2 text-white hover:bg-blue-700 disabled:opacity-60"
                                 >

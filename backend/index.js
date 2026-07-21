@@ -31,7 +31,6 @@ app.use(express.json());
 app.use(helmet());
 app.disable('x-powered-by');
 
-
 app.get('/health', (req, res) => res.status(200).send('server OK'));
 app.use('/auth', authRoute);
 
